@@ -1,0 +1,32 @@
+# Data Sources & Citation
+
+`data.csv` contains 449 short excerpts (161 Economics, 170 Entertainment, 118 Politics),
+collected on 2026-08-18 with `crawl.py` from the public RSS feeds of:
+
+- **BBC News** — https://www.bbc.co.uk/news
+  Feeds used: Business, Entertainment & Arts, Politics, World (Europe, US & Canada)
+  © British Broadcasting Corporation. Reused under the BBC's RSS terms:
+  https://www.bbc.co.uk/usingthebbc/terms-of-use/#15metadataandrssfeeds
+
+- **The Guardian** — https://www.theguardian.com
+  Feeds used: Business (Economics, UK Business, Banking, Stock Markets, Companies,
+  Retail), Money, Film, Music, TV & Radio, Stage, Culture, Books, Politics,
+  US Politics, Europe News
+  © Guardian News & Media Limited. Reused under the Guardian Open Platform /
+  RSS terms: https://www.theguardian.com/help/terms-of-service
+
+A single day's RSS feed only carries the ~20-70 most recent items, so reaching ~150
+excerpts per category means drawing from several feeds per category rather than one -
+see the full list in `crawl.py`'s `FEEDS` dict. Politics fell short of the 170/category
+target (118) even with 4 feeds; Economics and Entertainment reached it (or close to it).
+
+Each row in `data.csv` is a single short excerpt (roughly one paragraph, ~250-800
+characters) taken from the opening of a news article, not the full article text.
+This is for non-commercial, educational use as part of a university IR/clustering
+assignment. All rights to the original full articles remain with the BBC and
+Guardian News & Media respectively; no full-text redistribution is intended.
+
+Re-run `python3 crawl.py` to refresh the dataset with the latest headlines from
+these feeds (the exact articles, and therefore the exact count, will differ each
+time since they are today's news - the best-seed choice in `cluster.py` is tuned to
+this specific snapshot and would need `seed_sweep.py` re-run after a refresh).
