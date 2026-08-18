@@ -1,0 +1,9 @@
+beautifulsoup4
+seleniumbase
+selenium
+urllib3
+requests
+pymongo
+nltk
+fastapi
+uvicorn

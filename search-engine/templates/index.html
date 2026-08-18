@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CHCT Publication Search</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 700px;
+        margin: 60px auto;
+        padding: 0 16px;
+        color: #222;
+      }
+      h1 {
+        font-size: 28px;
+        text-align: center;
+        margin-bottom: 24px;
+      }
+      form {
+        display: flex;
+        gap: 8px;
+      }
+      input[type="text"] {
+        flex: 1;
+        padding: 10px 12px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        border: 0;
+        border-radius: 4px;
+        background: #1a73e8;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #1558b0;
+      }
+      #status {
+        margin-top: 12px;
+        color: #666;
+      }
+      .result {
+        margin-top: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #eee;
+      }
+      .result a.title {
+        font-size: 18px;
+        color: #1a0dab;
+        text-decoration: none;
+      }
+      .result a.title:hover {
+        text-decoration: underline;
+      }
+      .meta {
+        color: #555;
+        font-size: 14px;
+        margin-top: 4px;
+      }
+      .meta a {
+        color: #555;
+      }
+      .score {
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .score .score-label {
+        font-size: 12px;
+        color: #888;
+      }
+      .score span.field {
+        font-size: 12px;
+        color: #666;
+        background: #f1f3f4;
+        border-radius: 3px;
+        padding: 2px 6px;
+      }
+      .score span.combined {
+        font-size: 12px;
+        color: #1a0dab;
+        background: #e8f0fe;
+        font-weight: bold;
+        border-radius: 3px;
+        padding: 2px 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>CHCT Publication Search</h1>
+    <form id="search-form">
+      <input
+        type="text"
+        id="q"
+        placeholder="Search publications by title, abstract or keyword..."
+        autofocus
+      />
+      <button type="submit">Search</button>
+    </form>
+    <div id="status"></div>
+    <div id="results"></div>
+
+    <script>
+      const form = document.getElementById("search-form");
+      const status = document.getElementById("status");
+      const results = document.getElementById("results");
+
+      function renderAuthors(authors) {
+        if (!authors || authors.length === 0) return "";
+        return authors
+          .map((a) =>
+            a.profile_url
+              ? `<a href="${a.profile_url}" target="_blank">${a.name}</a>`
+              : a.name,
+          )
+          .join(", ");
+      }
+
+      function renderResult(r) {
+        const div = document.createElement("div");
+        div.className = "result";
+        const year = r.publication_year
+          ? ` &middot; ${r.publication_year}`
+          : "";
+        const fs = r.field_scores || {};
+        div.innerHTML = `
+    <a class="title" href="${r.url}" target="_blank">${r.title || "(untitled)"}</a>
+    <div class="meta">${renderAuthors(r.authors)}${year}</div>
+    <div class="score" title="Cosine similarity per field: 0 = no match, 1 = exact match. Combined = 0.5×title + 0.3×keyword + 0.2×abstract, and is what determines the ranking.">
+      <span class="score-label">Relevance:</span>
+      <span class="combined">combined ${r.score.toFixed(3)}</span>
+      <span class="field">title ${(fs.title || 0).toFixed(3)}</span>
+      <span class="field">keyword ${(fs.keywords || 0).toFixed(3)}</span>
+      <span class="field">abstract ${(fs.abstract || 0).toFixed(3)}</span>
+    </div>
+  `;
+        return div;
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const q = document.getElementById("q").value.trim();
+        results.innerHTML = "";
+        if (!q) return;
+
+        status.textContent = "Searching...";
+        try {
+          const res = await fetch(`/search?q=${encodeURIComponent(q)}`);
+          const data = await res.json();
+          status.textContent = data.results.length
+            ? `${data.results.length} result(s) for "${data.query}"`
+            : `No results for "${data.query}"`;
+          data.results.forEach((r) => results.appendChild(renderResult(r)));
+        } catch (err) {
+          status.textContent = "Search failed - is the API server running?";
+        }
+      });
+    </script>
+  </body>
+</html>
