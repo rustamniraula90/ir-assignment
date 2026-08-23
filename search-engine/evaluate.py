@@ -15,7 +15,6 @@ QUERIES = [
 QUERY_TERM_MATCH_FRACTION = 0.6
 
 def average_precision(judgments):
-    """Average of precision@k at each rank where a relevant result appears."""
     hits = 0
     precisions = []
     for k, relevant in enumerate(judgments, start=1):
@@ -23,7 +22,6 @@ def average_precision(judgments):
             hits += 1
             precisions.append(hits / k)
     return sum(precisions) / hits if hits else 0.0
-
 
 def relevant_urls(query):
     query_terms = set(clean_and_tokenize(query))
@@ -43,7 +41,6 @@ def relevant_urls(query):
             relevant.add(pub["url"])
     return relevant
 
-
 def confusion_matrix(retrieved, relevant, corpus_size):
     retrieved = set(retrieved)
     tp = len(retrieved & relevant)
@@ -52,12 +49,10 @@ def confusion_matrix(retrieved, relevant, corpus_size):
     tn = corpus_size - tp - fp - fn
     return {"tp": tp, "fp": fp, "fn": fn, "tn": tn}
 
-
 def print_confusion_matrix(cm):
     print(f"{'':16s}{'Retrieved':>12s}{'Not retrieved':>16s}")
     print(f"{'Relevant':16s}{'TP=' + str(cm['tp']):>12s}{'FN=' + str(cm['fn']):>16s}")
     print(f"{'Not relevant':16s}{'FP=' + str(cm['fp']):>12s}{'TN=' + str(cm['tn']):>16s}")
-
 
 def evaluate_effectiveness(index_data):
     corpus_size = len(index_data["docs"])
@@ -91,7 +86,6 @@ def evaluate_effectiveness(index_data):
         print(f"\n{query!r}")
         print_confusion_matrix(cm)
 
-
 def evaluate_efficiency(index_data, n_repeats=5):
     queries = QUERIES * n_repeats
     timings_ms = []
@@ -107,7 +101,6 @@ def evaluate_efficiency(index_data, n_repeats=5):
     print(f"  mean   = {statistics.mean(timings_ms):.3f} ms")
     print(f"  median = {statistics.median(timings_ms):.3f} ms")
     print(f"  p95    = {p95:.3f} ms")
-
 
 if __name__ == "__main__":
     build_start = time.perf_counter()

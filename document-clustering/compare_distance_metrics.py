@@ -2,7 +2,7 @@ import numpy as np
 
 from cluster import X, df, k, kmeans, purity_score
 
-SEED = 0  # arbitrary but fixed, for a reproducible side-by-side
+SEED = 0
 
 print("=" * 60)
 print("Euclidean distance")
@@ -18,7 +18,6 @@ np.random.seed(SEED)
 clusters_cosine, _ = kmeans(X, k, metric="cosine", init="random")
 purity_c, labels_c = purity_score(clusters_cosine, df["category"], k)
 
-
 def summarise(name, clusters, labels, purity):
     sizes = [int((clusters == c).sum()) for c in range(k)]
     print(f"\n{name}:")
@@ -26,7 +25,6 @@ def summarise(name, clusters, labels, purity):
     print(f"  Cluster labels: {labels}")
     print(f"  Purity:         {purity:.4f}")
     print(f"  Categories represented: {len(set(labels.values()))} / 3")
-
 
 print("\n" + "=" * 60)
 print("Summary")

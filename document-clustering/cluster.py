@@ -11,15 +11,9 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 
-
 nltk.download("stopwords", quiet=True)
 STOP_WORDS = set(stopwords.words("english"))
 STEMMER = PorterStemmer()
-
-
-# ============================================================
-# 1. LOAD DATA
-# ============================================================
 
 df = pd.read_csv("data.csv")
 
@@ -33,11 +27,6 @@ df["tokens"] = df["text"].apply(clean_and_tokenize)
 N = len(df)
 
 print("Number of documents:", N)
-
-
-# ============================================================
-# 2. BUILD VOCABULARY
-# ============================================================
 
 vocabulary = set()
 
@@ -53,27 +42,16 @@ word_to_index = {
 
 print("Vocabulary size:", len(vocabulary))
 
-
-# ============================================================
-# 3. CALCULATE DOCUMENT FREQUENCY (DF)
-# ============================================================
-
 document_frequency = {}
 
 for tokens in df["tokens"]:
 
-    # Count a word only once per document
     unique_words = set(tokens)
 
     for word in unique_words:
         document_frequency[word] = (
             document_frequency.get(word, 0) + 1
         )
-
-
-# ============================================================
-# 4. CALCULATE IDF
-# ============================================================
 
 idf = {}
 
@@ -82,11 +60,6 @@ for word in vocabulary:
     df_word = document_frequency[word]
 
     idf[word] = math.log(N / df_word)
-
-
-# ============================================================
-# 5. CALCULATE TF
-# ============================================================
 
 def calculate_tf(tokens):
 
@@ -105,11 +78,6 @@ def calculate_tf(tokens):
 
     return tf
 
-
-# ============================================================
-# 6. CREATE TF-IDF MATRIX
-# ============================================================
-
 X = np.zeros(
     (N, len(vocabulary))
 )
@@ -124,13 +92,7 @@ for i, tokens in enumerate(df["tokens"]):
 
         X[i, j] = tf_value * idf[word]
 
-
 print("TF-IDF matrix shape:", X.shape)
-
-
-# ============================================================
-# 7. DISTANCE / SIMILARITY FUNCTIONS
-# ============================================================
 
 def cosine_similarity(x, centroid):
 
@@ -145,14 +107,8 @@ def cosine_similarity(x, centroid):
 
     return numerator / denominator
 
-
 def euclidean_distance(x, centroid):
     return np.linalg.norm(x - centroid)
-
-
-# ============================================================
-# 8. ASSIGN DOCUMENTS TO CLUSTERS
-# ============================================================
 
 def assign_clusters(X, centroids, metric="cosine"):
 
@@ -161,11 +117,9 @@ def assign_clusters(X, centroids, metric="cosine"):
     for x in X:
 
         if metric == "cosine":
-            # Higher similarity = closer, so pick the largest value.
             scores = [cosine_similarity(x, c) for c in centroids]
             closest_cluster = np.argmax(scores)
         elif metric == "euclidean":
-            # Smaller distance = closer, so pick the smallest value.
             scores = [euclidean_distance(x, c) for c in centroids]
             closest_cluster = np.argmin(scores)
         else:
@@ -174,11 +128,6 @@ def assign_clusters(X, centroids, metric="cosine"):
         clusters.append(closest_cluster)
 
     return np.array(clusters)
-
-
-# ============================================================
-# 9. UPDATE CENTROIDS
-# ============================================================
 
 def update_centroids(X, clusters, k):
 
@@ -198,8 +147,6 @@ def update_centroids(X, clusters, k):
                 axis=0
             )
         else:
-            # Empty cluster: re-seed it with a random document instead of
-            # leaving a zero centroid, which would never attract anything.
             random_index = np.random.randint(
                 0,
                 X.shape[0]
@@ -208,11 +155,6 @@ def update_centroids(X, clusters, k):
             new_centroids[cluster] = X[random_index]
 
     return new_centroids
-
-
-# ============================================================
-# 9b. K-MEANS++ INITIALISATION
-# ============================================================
 
 def kmeans_plusplus_init(X, k, metric="cosine"):
 
@@ -240,18 +182,12 @@ def kmeans_plusplus_init(X, k, metric="cosine"):
         if total_weight > 0:
             probabilities = weights / total_weight
         else:
-            # avoid divide by zero: fall back to a uniform draw
             probabilities = np.full(n_samples, 1 / n_samples)
 
         next_index = np.random.choice(n_samples, p=probabilities)
         centroids.append(X[next_index])
 
     return np.array(centroids)
-
-
-# ============================================================
-# 10. K-MEANS
-# ============================================================
 
 def kmeans(X, k, metric="cosine", max_iterations=100, init="kmeans++", verbose=True):
 
@@ -306,11 +242,6 @@ def kmeans(X, k, metric="cosine", max_iterations=100, init="kmeans++", verbose=T
 
     return clusters, centroids
 
-
-# ============================================================
-# 10b. MULTI-RESTART: RUN K-MEANS SEVERAL TIMES, KEEP LOWEST INERTIA
-# ============================================================
-
 def compute_inertia(X, clusters, centroids, metric="cosine"):
 
     if metric == "cosine":
@@ -323,7 +254,6 @@ def compute_inertia(X, clusters, centroids, metric="cosine"):
         euclidean_distance(x, centroids[c]) ** 2
         for x, c in zip(X, clusters)
     )
-
 
 def run_kmeans_multi_restart(X, k, metric="cosine", n_init=10, max_iterations=100):
 
@@ -343,11 +273,6 @@ def run_kmeans_multi_restart(X, k, metric="cosine", n_init=10, max_iterations=10
 
     return best_clusters, best_centroids, best_inertia
 
-
-# ============================================================
-# 11. RUN K-MEANS WITH K = 3
-# ============================================================
-
 np.random.seed(0)
 N_INIT = 10
 
@@ -361,24 +286,13 @@ clusters, centroids, _best_inertia = run_kmeans_multi_restart(X, k, n_init=N_INI
 _elapsed = time.time() - _start_time
 print(f"\nK-means clustering time ({N_INIT} restarts): {_elapsed * 1000:.1f} ms")
 
-
-# ============================================================
-# 12. ADD CLUSTER ASSIGNMENTS TO DATAFRAME
-# ============================================================
-
 df["cluster"] = clusters
-
-
-# ============================================================
-# 13. DISPLAY RESULTS
-# ============================================================
 
 print("\nCluster sizes:")
 
 print(
     df["cluster"].value_counts().sort_index()
 )
-
 
 print("\nSample results:")
 
@@ -387,11 +301,6 @@ print(
         ["text", "category", "cluster"]
     ].head(20)
 )
-
-
-# ============================================================
-# 14. SHOW MOST IMPORTANT WORDS IN EACH CENTROID
-# ============================================================
 
 print("\nTop words in each centroid:")
 
@@ -411,11 +320,6 @@ for cluster in range(k):
         top_words
     )
 
-
-# ============================================================
-# 15. LABEL EACH CLUSTER WITH ITS MAJORITY CATEGORY
-# ============================================================
-
 def label_clusters(clusters, categories, k):
     labels = {}
 
@@ -425,7 +329,6 @@ def label_clusters(clusters, categories, k):
 
     return labels
 
-
 cluster_labels = label_clusters(clusters, df["category"], k)
 
 print("\nCluster -> majority category:")
@@ -433,17 +336,11 @@ print("\nCluster -> majority category:")
 for cluster in range(k):
     print(f"  Cluster {cluster}: {cluster_labels[cluster]}")
 
-
-# ============================================================
-# 15b. EVALUATE CLUSTERING AGAINST THE KNOWN GROUND TRUTH
-# ============================================================
-
 def purity_score(clusters, categories, k):
     labels = label_clusters(clusters, categories, k)
     predicted = pd.Series(clusters).map(labels)
     purity = (predicted.values == categories.values).mean()
     return purity, labels
-
 
 df["predicted_category"] = df["cluster"].map(cluster_labels)
 
@@ -487,11 +384,6 @@ for category in categories:
         f"recall={recall:.4f}  f1={f1:.4f}"
     )
 
-
-# ============================================================
-# 16. CLASSIFY A NEW DOCUMENT ENTERED BY THE USER
-# ============================================================
-
 def vectorize_document(text):
     tokens = clean_and_tokenize(text)
     tf = calculate_tf(tokens)
@@ -504,7 +396,6 @@ def vectorize_document(text):
 
     return vector
 
-
 def predict_cluster(text):
     vector = vectorize_document(text)
 
@@ -516,7 +407,6 @@ def predict_cluster(text):
     predicted_cluster = int(np.argmax(similarities))
 
     return predicted_cluster, similarities
-
 
 if __name__ == "__main__":
     print("\n" + "=" * 60)

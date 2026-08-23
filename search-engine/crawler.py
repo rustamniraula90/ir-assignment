@@ -12,10 +12,8 @@ from urllib.robotparser import RobotFileParser
 
 from pymongo import MongoClient
 
-
 class BrowserDiedError(Exception):
     pass
-
 
 BROWSER_FATAL_EXCEPTIONS = (WebDriverException, MaxRetryError, NewConnectionError, ConnectionRefusedError, OSError)
 
@@ -49,7 +47,6 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 session = requests.Session()
 session.headers.update({"User-Agent": USER_AGENT})
 
-
 def refresh_cf_clearance(sb):
     try:
         sb.uc_open_with_reconnect(BASE_URL + "/en/", reconnect_time=4)
@@ -60,7 +57,6 @@ def refresh_cf_clearance(sb):
         session.headers["User-Agent"] = sb.driver.execute_script("return navigator.userAgent")
     except BROWSER_FATAL_EXCEPTIONS as e:
         raise BrowserDiedError(f"Browser died during cf_clearance refresh: {e}") from e
-
 
 def is_challenge_page(html_content):
     soup = BeautifulSoup(html_content, "html.parser")
@@ -73,7 +69,6 @@ def is_challenge_page(html_content):
         return True
 
     return False
-
 
 def fetch_page(sb, url, max_challenge_retries=2):
     response = session.get(url, timeout=30)
@@ -105,7 +100,6 @@ def fetch_page(sb, url, max_challenge_retries=2):
 
     raise RuntimeError(f"Could not get past Cloudflare challenge for {url}")
 
-
 def get_robot_parser(base_url):
     parsed = urlparse(base_url)
     robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
@@ -119,13 +113,11 @@ def get_robot_parser(base_url):
         rp = None
     return rp
 
-
 def can_fetch(rp, url):
     if rp is None:
         return True
 
     return rp.can_fetch("*", url)
-
 
 def get_crawl_delay(rp):
     if rp is not None:
@@ -133,7 +125,6 @@ def get_crawl_delay(rp):
         if delay:
             return float(delay)
     return DEFAULT_CRAWL_DELAY_SECONDS
-
 
 def enqueue(url_type, url, source_member=None):
     now = datetime.now(timezone.utc)
@@ -150,7 +141,6 @@ def enqueue(url_type, url, source_member=None):
         update["$addToSet"] = {"source_members": source_member}
     db_urls.update_one({"url": url}, update, upsert=True)
 
-
 def get_next_job():
     return db_urls.find_one_and_update(
         {"next_crawl_date": {"$lt": datetime.now(timezone.utc)}},
@@ -158,13 +148,11 @@ def get_next_job():
         sort=[("priority", 1), ("next_crawl_date", 1)],
     )
 
-
 def mark_success(url):
     db_urls.update_one(
         {"url": url},
         {"$set": {"next_crawl_date": datetime.now(timezone.utc) + timedelta(days=RECRAWL_INTERVAL_DAYS), "retries": 0}},
     )
-
 
 def schedule_retry(url):
     doc = db_urls.find_one({"url": url})
@@ -181,7 +169,6 @@ def schedule_retry(url):
             "retries": retries,
         }})
 
-
 def parse_authors(soup):
     authors = []
     for li in soup.select("ul.relations.persons li, p.relations.persons"):
@@ -195,7 +182,6 @@ def parse_authors(soup):
             if text:
                 authors.append({"name": text, "profile_url": None})
     return authors
-
 
 def extract_content(html, url_type, current_url=""):
     soup = BeautifulSoup(html, "html.parser")
@@ -269,8 +255,6 @@ def extract_content(html, url_type, current_url=""):
 
     return None
 
-
-
 def process_job(sb, rp, crawl_delay, document):
     url = document["url"]
     url_type = document["url_type"]
@@ -302,7 +286,7 @@ def process_job(sb, rp, crawl_delay, document):
                 mark_success(url)
             else:
                 if content is not None:
-                    mark_success(url)  # valid empty last page, not a failure
+                    mark_success(url)
                 else:
                     schedule_retry(url)
 
@@ -323,7 +307,6 @@ def process_job(sb, rp, crawl_delay, document):
         schedule_retry(url)
 
     time.sleep(crawl_delay)
-
 
 def crawl(seed_url=SEED_URL):
     if not db_urls.find_one({"url": seed_url}):
@@ -353,7 +336,6 @@ def crawl(seed_url=SEED_URL):
             print(f"Browser session died ({e}). Creating new session in 10 seconds.")
             time.sleep(10)
             continue
-
 
 if __name__ == "__main__":
     crawl()

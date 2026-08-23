@@ -8,7 +8,6 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 
-
 nltk.download("stopwords", quiet=True)
 STOP_WORDS = set(stopwords.words("english"))
 STEMMER = PorterStemmer()
@@ -20,12 +19,10 @@ db_publications = db["publications"]
 
 FIELD_WEIGHTS = {"title": 0.5, "keywords": 0.3, "abstract": 0.2}
 
-
 def clean_and_tokenize(text):
     text = text.lower()
     words = re.split(r"[^a-z]+", text)
     return [STEMMER.stem(w) for w in words if w and w not in STOP_WORDS]
-
 
 def term_frequency(tokens):
     if not tokens:
@@ -33,7 +30,6 @@ def term_frequency(tokens):
     counts = Counter(tokens)
     total = len(tokens)
     return {term: count / total for term, count in counts.items()}
-
 
 def build_field_index(tokenized, n_docs):
     doc_freq = Counter()
@@ -52,7 +48,6 @@ def build_field_index(tokenized, n_docs):
             inverted_index[term][doc_id] = weight
 
     return {"index": inverted_index, "magnitude": magnitude, "idf": idf}
-
 
 def build_search_index():
     tokenized = {field: {} for field in FIELD_WEIGHTS}
@@ -79,7 +74,6 @@ def build_search_index():
 
     return {"fields": fields, "docs": docs}
 
-
 def field_scores(field_index, tokens):
     idf = field_index["idf"]
     inverted_index = field_index["index"]
@@ -102,7 +96,6 @@ def field_scores(field_index, tokens):
         for doc_id, dot in dot_products.items()
         if magnitude[doc_id] > 0
     }
-
 
 def search_publications(index_data, query, top_n=10):
     tokens = clean_and_tokenize(query)
@@ -127,4 +120,3 @@ def search_publications(index_data, query, top_n=10):
         }
         results.append(result)
     return results
-

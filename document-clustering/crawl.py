@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; academic-clustering-assignment/1.0)"}
 TIMEOUT = 15
-TARGET_PER_CATEGORY = 170
+TARGET_PER_CATEGORY = 100
 MIN_CHARS = 250
 MAX_CHARS = 700
 
@@ -46,13 +46,11 @@ FEEDS = {
     ],
 }
 
-
 def fetch(url):
     resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
     resp.raise_for_status()
     resp.encoding = "utf-8"
     return resp.text
-
 
 def parse_feed_links(xml_text):
     links = []
@@ -63,17 +61,13 @@ def parse_feed_links(xml_text):
             if link_el is not None and link_el.text:
                 links.append(link_el.text.strip())
     except ET.ParseError:
-        # Fallback: regex extraction
         links = re.findall(r"<link>(https?://[^<]+)</link>", xml_text)
     return links
 
-
 def clean_text(text):
     text = re.sub(r"\s+", " ", text).strip()
-    # strip BBC's visually-hidden "external link" marker leaking into text
     text = re.sub(r"\s*,\s*external\b", "", text)
     return text
-
 
 def truncate_to_sentence(text, max_chars):
     if len(text) <= max_chars:
@@ -84,35 +78,37 @@ def truncate_to_sentence(text, max_chars):
         return truncated[: last_stop + 1]
     return truncated.rsplit(" ", 1)[0] + "..."
 
-
 def extract_paragraph(html, url):
     soup = BeautifulSoup(html, "html.parser")
 
-    # drop images/figures first: their captions sit in <figcaption> inside
-    # <figure> and otherwise get glued onto the following body paragraph
     for fig in soup.find_all(["figure", "figcaption"]):
         fig.decompose()
 
     if "theguardian.com" in url:
         paras = soup.select("div#maincontent p")
-    else:  # bbc.co.uk
+    else:
         article = soup.find("article") or soup
         paras = article.find_all("p")
 
     texts = []
     for p in paras:
         t = clean_text(p.get_text(" ", strip=True))
-        # skip boilerplate / very short fragments / bylines
         if len(t) < 40:
             continue
         if t.lower().startswith(("follow ", "share this", "related:", "read more")):
+            continue
+        if "@theguardian.com" in t or "@bbc" in t.lower():
+            continue
+        if any(phrase in t.lower() for phrase in (
+            "bbc app", "bbc sounds", "recommended if you like", "up next",
+            "listen to bbc podcasts",
+        )):
             continue
         texts.append(t)
 
     if not texts:
         return None
 
-    # Build ~1 paragraph: accumulate sentences until MAX_CHARS
     combined = ""
     for t in texts:
         candidate = (combined + " " + t).strip() if combined else t
@@ -122,13 +118,17 @@ def extract_paragraph(html, url):
         if len(combined) >= MIN_CHARS:
             break
 
-    if len(combined) < MIN_CHARS and texts:
-        combined = texts[0]
+    if len(combined) < MIN_CHARS:
+        for t in texts:
+            if len(t) >= 120:
+                combined = t
+                break
+        else:
+            combined = texts[0]
 
     combined = truncate_to_sentence(combined, MAX_CHARS + 150)
 
-    return combined if len(combined) >= 80 else None
-
+    return combined if len(combined) >= 120 else None
 
 def collect_category(category, feed_urls, target, seen_texts):
     rows = []
@@ -153,7 +153,6 @@ def collect_category(category, feed_urls, target, seen_texts):
                 continue
             seen_links.add(link)
 
-            # skip non-article pages (live pages, video-only, etc.)
             if any(seg in link for seg in ("/live/", "/av/", "/videos/", "/in-pictures/", "/gallery/")):
                 continue
 
@@ -164,17 +163,13 @@ def collect_category(category, feed_urls, target, seen_texts):
                 continue
 
             text = extract_paragraph(html, link)
-            # BBC cross-posts some stories to multiple sections (e.g. Business
-            # & Politics); skip near-duplicate text so a document doesn't end
-            # up double-counted under two different category labels.
             if text and text not in seen_texts:
                 rows.append({"text": text, "category": category})
                 seen_texts.add(text)
 
-            time.sleep(0.3)  # be polite to servers
+            time.sleep(0.3)
 
     return rows
-
 
 def main():
     all_rows = []
@@ -191,7 +186,6 @@ def main():
         writer.writerows(all_rows)
 
     print(f"\nTotal documents written: {len(all_rows)}")
-
 
 if __name__ == "__main__":
     main()
